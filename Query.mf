@@ -1,0 +1,4 @@
+Manifest-Version: 1.0
+Main-Class: qdrop.Start
+Class-Path: JCommonTools.jar
+Class-Path: edrop.jar
