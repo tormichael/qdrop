@@ -10,6 +10,7 @@ import qdrop.ses.ParamDB;
 
 public class WorkDB 
 {
+	/*
 	private Connection 		_cn;
 	private ParamDB			_pdb;
 
@@ -61,4 +62,5 @@ public class WorkDB
 		
 		_logger = Logger.getLogger("qDrop", Start.FN_RESOURCE_TEXT);
 	}
+	*/
 }

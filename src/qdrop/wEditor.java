@@ -60,8 +60,8 @@ import JCommonTools.TextEditor;
 
 public class wEditor extends JFrame 
 {
-	private Session 	_ses; // working session
-	private Query 		_qq; // current query
+	private WorkSession		_ws; // working session
+	private Query 			_qq; // current query
 	
 	private ResourceBundle _bnd;
 	private ResourceBundle _bndCT;
@@ -88,16 +88,23 @@ public class wEditor extends JFrame
 		_prefPath = aPath;
 	}
 	
-	public wEditor(Session aSes, jqPreferences aPrf)
+	private Action _actSaveAndExit;
+	public void setActionSaveAndExit(Action act)
 	{
-		_ses = aSes;
+		_actSaveAndExit = act;
+	}
+	
+	public wEditor(WorkSession aWS, jqPreferences aPrf)
+	{
+		_ws = aWS;
+		_actSaveAndExit = null;
 		
 		Dimension szScreen = Toolkit.getDefaultToolkit().getScreenSize();
 		setSize(szScreen.width/2, szScreen.height/2);
 		setLocation((int)(szScreen.width/2*Math.random()), (int)(szScreen.height/3*Math.random()));
 
-		_bnd = ResourceBundle.getBundle(Start.FN_RESOURCE_TEXT, aPrf.getCurrentLocale());
-		_bndCT = ResourceBundle.getBundle(Start.FN_RESOURCE_TEXT_CT, aPrf.getCurrentLocale());
+		_bnd = aWS.getResourceBundle();
+		_bndCT = ResourceBundle.getBundle(Start.FN_RESOURCE_TEXT_CT, _bnd.getLocale());
 
 		/**
 		 * M E N U
@@ -161,7 +168,7 @@ public class wEditor extends JFrame
 		gbl.setConstraints(lblParent, gbc);
 		pnlMain.add(lblParent);
 		_ctrParents = new ComboTree();
-		_ctrParents.setTreeModel(new TreeModelSession(aSes));
+		_ctrParents.setTreeModel(new TreeModelSession(aWS.get_ses()));
 		gbl.setConstraints(_ctrParents, gbc.setGridXY(1,0).setGridSpan(2, 1).setWeight(1.0, 0.0));
 		pnlMain.add(_ctrParents);
 		JLabel lblSep = new JLabel("\\", JLabel.CENTER);
@@ -268,20 +275,51 @@ public class wEditor extends JFrame
 		_txtSQL.setText(_qq.SQL);
 		_txtSQL.runKeyWordPopUp();
 		_txtXSLT.setText(_qq.XSLT);
-		_ctrParents.setSelectedPath(((TreeModelSession)_ctrParents.getTreeModel()).getPath(_ses.getParent(aQ)));
+		_ctrParents.setSelectedPath(((TreeModelSession)_ctrParents.getTreeModel()).getPath(_ws.get_ses().getParent(aQ)));
 		_pnlParam.setParamCollection(aQ.Params);
 	}
 	
-	private void save2Query(Query aQ)
+	private boolean save2Query(Query aQ)
 	{
-		aQ.Name = _txtName.getText();
-		aQ.Code = Integer.parseInt(_txtCode.getText());
-		aQ.Author = _txtAuthor.getText();
-		aQ.Note = _txtComment.getText();
-		aQ.SQL = _txtSQL.getText();
-		aQ.XSLT = _txtXSLT.getText();
-		//_ctrParents.setSelectedPath(((TreeModelSession)_ctrParents.getTreeModel()).getPath(_ses.getParent(aQ)));
-		//_pnlParam.setParamCollection(aQ.Params);
+		boolean ret = false;
+		try
+		{
+			int actId = 1;
+			
+			if (aQ == null)
+			{
+				actId = 0;
+				aQ = new Query();
+				_ws.get_ses().Queries.add(aQ);
+			}
+			
+			//_ctrParents.setSelectedPath(((TreeModelSession)_ctrParents.getTreeModel()).getPath(_ses.getParent(aQ)));
+			aQ.Name = _txtName.getText();
+			String str = _txtCode.getText();
+			if (str.length()> 0)
+				aQ.Code = Integer.parseInt(str);
+			
+			aQ.Author = _txtAuthor.getText();
+			aQ.Note = _txtComment.getText();
+			aQ.SQL = _txtSQL.getText();
+			aQ.XSLT = _txtXSLT.getText();
+			//_pnlParam.setParamCollection(aQ.Params);
+			
+			_ws.setModified(true);
+			if (_actSaveAndExit != null)
+				_actSaveAndExit.actionPerformed(new ActionEvent(aQ, actId,  null));
+			ret = true;	
+		}
+		//catch (NumberFormatException ex)
+		//{
+		//	_sbiMain.setText(String.format(_bnd.getString("Error"), ex.getMessage()));
+		//}
+		catch (Exception ex)
+		{
+			_sbiMain.setText(String.format(_bnd.getString("Error"), ex.getMessage()));
+		}
+		
+		return ret;
 	}
 	
 	private void LoadProgramPreference()
@@ -311,14 +349,9 @@ public class wEditor extends JFrame
 		@Override
 		public void actionPerformed(ActionEvent e) 
 		{
-			try
-			{
-				save2Query(_qq);
+			if (save2Query(_qq))
 				setVisible(false);
-			}
-			catch (Exception ex)
-			{
-			}
+				
 		}
 	};
 	

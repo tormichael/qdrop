@@ -1,5 +1,6 @@
 package qdrop;
 
+import java.awt.event.ActionEvent;
 import java.io.File;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -14,6 +15,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.sql.rowset.CachedRowSet;
+import javax.swing.Action;
+import javax.swing.text.StyledEditorKit.BoldAction;
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Marshaller;
@@ -33,11 +36,13 @@ import qdrop.ses.Session3;
 import JCommonTools.CC;
 import JCommonTools.PlaceCode;
 import JCommonTools.ShowMessageHandler;
+import JCommonTools.DB.DBWork;
 /**
  * Working session.
  * 
  * @author M.Tor
  * @since 27.04.2010
+ * update: 12.02.1014
  */
 public class WorkSession 
 {
@@ -61,6 +66,7 @@ public class WorkSession
 	public Session get_ses() {
 		return _ses;
 	}
+
 	/**
 	 * �������(�������) ������:
 	 */
@@ -75,12 +81,34 @@ public class WorkSession
 		//_currentQuery = _ses.getQuery(aCode);
 	}
 	
-	private WorkDB[] _wdb;
+	private DBWork[] _wdb;
 	
 	private boolean _isLoadSQ3;
-	public boolean isLoadSQ3() {
+	public boolean isLoadSQ3() 
+	{
 		return _isLoadSQ3;
 	}
+	
+	private Action	_actModified;
+	public void setActionModified(Action act)
+	{
+		_actModified = act;
+	}
+	
+	private boolean _isModified;
+	public boolean isModified()
+	{
+		return _isModified;
+	}
+	public void setModified(boolean val)
+	{
+		if (_isModified != val && _actModified != null)
+		{
+			_actModified.actionPerformed(new ActionEvent(this, val ? 1 : 0, null));
+		}
+		_isModified = val;
+	}
+	
 
 	public WorkSession(Locale aLoc)
 	{
@@ -93,7 +121,7 @@ public class WorkSession
 		_logger.addHandler(smh);
 		_isLoadSQ3 = false;
 		_wdb = null;
-		
+		_isModified = false;
 	}
 
 	/**
@@ -101,7 +129,7 @@ public class WorkSession
 	 * @param aQ - query
 	 * @return WorkDB class
 	 */
-	public WorkDB getWorkDB(Query aQ)
+	public DBWork getWorkDB(Query aQ)
 	{
 		Query pq = aQ;
 		int dbCode = pq.DBCode;
@@ -116,11 +144,16 @@ public class WorkSession
 			dbCode = _ses.DBCodeDefault;
 		
 		if (dbCode > 0)
-			for (WorkDB wdb : _wdb)
-				if (wdb.getParamDB().Code == dbCode)
+			for (DBWork wdb : _wdb)
+				if (((ParamDB)wdb.getDBConnParam()).Code == dbCode)
 					return wdb;
 		
 		return null;
+	}
+
+	public void New()
+	{
+		_ses = new Session();
 	}
 	
 	/**
@@ -158,11 +191,11 @@ public class WorkSession
     	{
     		try
     		{
-	    		_wdb = new WorkDB[_ses.ParamDBCol.size()];
+	    		_wdb = new DBWork[_ses.ParamDBCol.size()];
 	    		for (int ii = 0; ii < _wdb.length; ii++)
-	    			_wdb[ii] = new WorkDB(_ses.ParamDBCol.get(ii));
+	    			_wdb[ii] = new DBWork(_ses.ParamDBCol.get(ii));
     		}
-    		catch (ClassNotFoundException ex)
+    		catch (Exception ex)
     		{
     			ex.printStackTrace();
     			ret = false;
@@ -226,7 +259,8 @@ public class WorkSession
 	    	_ses.DBCodeDefault = 1;
 	    	ParamDB pdb = new ParamDB();
 	    	pdb.Code = 1;
-	    	pdb.Driver = "com.microsoft.sqlserver.jdbc.SQLServerDriver";
+	    	pdb.Driver.Path = "com.microsoft.sqlserver.jdbc.SQLServerDriver";
+	    	pdb.Driver.ClassName = "jdbc:sqlserver";
 	    	pdb.Host = ConvertOLEDBConnection2JDBCHost(aSes3.DBConnection);
 	    	_ses.ParamDBCol.add(pdb);
 	    	_ses.ParamBegDelim = new String(aSes3.ParamBegDelim);

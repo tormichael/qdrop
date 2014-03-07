@@ -14,6 +14,8 @@ import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.File;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ResourceBundle;
 import java.util.prefs.Preferences;
 
@@ -21,6 +23,7 @@ import javax.swing.*;
 import javax.swing.event.TreeSelectionEvent;
 import javax.swing.event.TreeSelectionListener;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import javax.swing.tree.TreePath;
 
 import qdrop.ses.Query;
 
@@ -63,6 +66,7 @@ public class wSession extends JFrame
 	private JSplitPane _splPanel;
 	private JLabel _sbiMain;
 	private String _currSesFileName;
+	private String _prevPath;
 	private PanelParam _pnlParam;
 	private ResourceBundle _bnd;
 
@@ -73,6 +77,7 @@ public class wSession extends JFrame
 		_prf = new jqPreferences();
 		_qp = new WorkSession(_prf.getCurrentLocale());
 		_currSesFileName = CC.STR_EMPTY;
+		_prevPath = CC.STR_EMPTY;
 		
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		
@@ -108,6 +113,7 @@ public class wSession extends JFrame
 			{
 				wSesParams dlg = new wSesParams(_qp.get_ses(), _prf);
 				dlg.setPreferencePath(PREFERENCE_PATH);
+				dlg.setModal(true);
 				dlg.setVisible(true);
 			}
 		});
@@ -230,8 +236,12 @@ public class wSession extends JFrame
 		UpdateLanguage();
 		
 		this.setIconImage(ImageTools.CreateIcon("drop3a.png", _prf.getIconSize()).getImage());
+
+		_tvSes.setEditable(true);
 		
 		LoadProgramPreference();
+		
+		_qp.setActionModified(actModified);
 		
 		setVisible(true);
 		
@@ -325,8 +335,14 @@ public class wSession extends JFrame
 
 	Action actSessionNew = new AbstractAction() {
 		@Override
-		public void actionPerformed(ActionEvent arg0) {
-			JOptionPane.showMessageDialog(wSession.this, "Do it later");
+		public void actionPerformed(ActionEvent arg0) 
+		{
+			//JOptionPane.showMessageDialog(wSession.this, "Do it later");
+			_qp.New();
+			_qp.setModified(false);
+			_currSesFileName = CC.STR_EMPTY;
+			wSession.this.setTitle(_bnd.getString("Titles.wSession.NewSession"));
+			_tvSes.setModel(new TreeModelSession(_qp.get_ses()));
 			
 		}
 		
@@ -346,7 +362,11 @@ public class wSession extends JFrame
 				_currSesFileName = SaveSessionAs();
 			
 			if (_currSesFileName.length() > 0)
+			{
 				_qp.Save(_currSesFileName);
+	    		_qp.setModified(false);
+			}
+			
 		}
 	}
 	Action actSessionSaveAs;
@@ -363,6 +383,7 @@ public class wSession extends JFrame
 			{
 				_currSesFileName = fn;
 				_qp.Save(_currSesFileName);
+		    	_qp.setModified(false);
 			}
 		}
 	}
@@ -392,9 +413,15 @@ public class wSession extends JFrame
 		@Override
 		public void actionPerformed(ActionEvent arg0) 
 		{
-			wEditor qe = new wEditor(_qp.get_ses(), _prf);
+			//TreePath tp = _tvSes.getSelectionPath().getParentPath();
+			wEditor qe = new wEditor(_qp, _prf);
+			qe.setActionSaveAndExit(actEndEditQuery);
 			qe.setPreferencePath(PREFERENCE_PATH);
 			qe.setVisible(true);
+			
+			//_tvSes.collapsePath(tp);
+			//Query q = (Query)tp.getLastPathComponent();
+			//_tvSes.expandPath(tp);
 		}
 	};
 	Action actQueryEdit = new AbstractAction()
@@ -404,13 +431,37 @@ public class wSession extends JFrame
 		{
 			if (_qp.get_currentQuery()!= null)
 			{
-				wEditor qe = new wEditor(_qp.get_ses(), _prf);
+				//TreePath tp = _tvSes.getSelectionPath();
+				wEditor qe = new wEditor(_qp, _prf);
+				qe.setActionSaveAndExit(actEndEditQuery);
 				qe.setPreferencePath(PREFERENCE_PATH);
 				qe.SetQuery(_qp.get_currentQuery());
 				qe.setVisible(true);
+				
+				//_tvSes.scrollPathToVisible(tp);
+				//_tvSes.setEditable(false);
 			}
 		}
 	};
+	Action actEndEditQuery = new AbstractAction() 
+	{
+		@Override
+		public void actionPerformed(ActionEvent e) 
+		{
+			if (e.getID() == 0)
+			{
+			TreePath tpp = _tvSes.getSelectionPath().getParentPath();
+			TreePath tp = tpp.pathByAddingChild(e.getSource());
+			//_tvSes.collapsePath(tpp);
+			((TreeModelSession)_tvSes.getModel()).reload((Query)e.getSource());
+			//Query q = (Query)tp.getLastPathComponent();
+			//_tvSes.expandPath(tp);
+			_tvSes.setSelectionPath(tp);
+			
+			}
+		}
+	};
+	
 	Action actQueryDelete = new AbstractAction()
 	{
 		@Override
@@ -419,7 +470,22 @@ public class wSession extends JFrame
 		}
 	};
 
-
+	Action actModified = new AbstractAction() 
+	{
+		@Override
+		public void actionPerformed(ActionEvent e) 
+		{
+			String tt = wSession.this.getTitle();
+			if (tt.endsWith("*"))
+				tt = tt.substring(0, tt.length()-1);
+			
+			if (e.getID() == 0)
+				wSession.this.setTitle(tt);
+			else
+				wSession.this.setTitle(tt + "*");
+			
+		}
+	};
 
 	private class OpenSessionAction implements ActionListener
 	{
@@ -427,7 +493,8 @@ public class wSession extends JFrame
 		public void actionPerformed(ActionEvent arg0) 
 		{
 			JFileChooser dlg = new JFileChooser();
-			dlg.setCurrentDirectory(new File("C:\\ASW\\SQ4\\"));
+			if (_prevPath.length() > 0)
+				dlg.setCurrentDirectory(new File(_prevPath));
 			//dlg.setFileFilter(new FileNameExtensionFilter("Session", "sq3", "sq4"));
 			if (dlg.showOpenDialog(wSession.this) == JFileChooser.APPROVE_OPTION)
 				LoadSession(dlg.getSelectedFile().getPath());
@@ -439,6 +506,7 @@ public class wSession extends JFrame
 		if (aFileName.length() > 0 && _qp.Load(aFileName))
 		{
 			_currSesFileName = aFileName;
+			_prevPath = Paths.get(_currSesFileName).getParent().toString();
 		}
 		else
 		{
@@ -446,6 +514,9 @@ public class wSession extends JFrame
 		}
 		_tvSes.setModel(new TreeModelSession(_qp.get_ses()));
 		_tvSes.expandRow(0);
+		
+		wSession.this.setTitle(String.format(_bnd.getString("Titles.wSession"), _qp.get_ses().Title, _currSesFileName));
+    	_qp.setModified(false);
 	}
 	
 	private String SaveSessionAs()
@@ -494,6 +565,7 @@ public class wSession extends JFrame
 		_splPanel.setDividerLocation(node.getInt("SplitDividerLocation", 100));
 		
 		_currSesFileName = node.get("LastLoadedSession", CC.STR_EMPTY);
+		_prevPath = node.get("PreviousPath", CC.STR_EMPTY);
 		_lastSelectedQueryCode = node.getInt("LastSelectedQuery", 0);
 	}
 	
@@ -512,6 +584,7 @@ public class wSession extends JFrame
 		}
 		node.putInt("SplitDividerLocation", _splPanel.getDividerLocation());
 		node.put("LastLoadedSession", _currSesFileName);
+		node.put("PreviousPath", _prevPath);
 		if (_qp.get_currentQuery()!= null)
 			node.putInt("LastSelectedQuery", _qp.get_currentQuery().Code);
 

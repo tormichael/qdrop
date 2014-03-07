@@ -19,6 +19,7 @@ import javax.lang.model.element.ExecutableElement;
 import javax.sql.rowset.CachedRowSet;
 
 import JCommonTools.StringHandler;
+import JCommonTools.DB.DBWork;
 
 //import com.sun.rowset.CachedRowSetImpl;
 //import com.sun.xml.internal.stream.buffer.stax.StreamWriterBufferCreator;
@@ -155,11 +156,11 @@ public class ExecuteQuery implements Runnable
     	
     	try
     	{
-    		WorkDB wdb = _ws.getWorkDB(aQ);
+    		DBWork wdb = _ws.getWorkDB(aQ);
     		StringHandler sHnd = new StringHandler();
     		sHnd.setLevel(Level.INFO);
-    		wdb.get_logger().setUseParentHandlers(false); // don't show in stout 
-    		wdb.get_logger().addHandler(sHnd);
+    		wdb.getLogger().setUseParentHandlers(false); // don't show in stout 
+    		wdb.getLogger().addHandler(sHnd);
     		Connection cn = wdb.getConn();
     		if (cn == null)
     			throw new Exception(sHnd.getString());

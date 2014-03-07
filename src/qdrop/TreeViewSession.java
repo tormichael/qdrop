@@ -16,6 +16,8 @@ public class TreeViewSession extends JTree
 	{
 		super(new TreeModelSession(aSes));
 		getSelectionModel().setSelectionMode(TreeSelectionModel.SINGLE_TREE_SELECTION);
+		
+		//this.
 	}
 
 	

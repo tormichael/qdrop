@@ -21,6 +21,7 @@ import qdrop.ses.eQueryParamType;
 import JCommonTools.ItemValDisp;
 import JCommonTools.PlaceCode;
 import JCommonTools.StringHandler;
+import JCommonTools.DB.DBWork;
 
 public class ExecuteQueryParam implements Runnable 
 {
@@ -78,11 +79,11 @@ public class ExecuteQueryParam implements Runnable
 	        	ArrayList<Object> psParam = new ArrayList<Object>();
 	        	sql = mWS.TranslateSQL2PreparedStatementSQL(sql,arrPrm,mWS.get_ses().ParamBegDelim,mWS.get_ses().ParamEndDelim, psParam);
 	    		
-        		WorkDB wdb = mWS.getWorkDB(qq);
+        		DBWork wdb = mWS.getWorkDB(qq);
         		StringHandler sHnd = new StringHandler();
         		sHnd.setLevel(Level.INFO);
-        		wdb.get_logger().setUseParentHandlers(false); // don't show in stout 
-        		wdb.get_logger().addHandler(sHnd);
+        		wdb.getLogger().setUseParentHandlers(false); // don't show in stout 
+        		wdb.getLogger().addHandler(sHnd);
         		Connection cn = wdb.getConn();
         		if (cn == null)
         			throw new Exception(sHnd.getString());
